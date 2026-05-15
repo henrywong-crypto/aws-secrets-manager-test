@@ -1,0 +1,39 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "insert into request_approvals\n           (secret_request_id, level, decision, approver_user_id, approver_group, note)\n         values ($1, $2, $3, $4, $5, $6)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        {
+          "Custom": {
+            "name": "approval_level",
+            "kind": {
+              "Enum": [
+                "L1",
+                "L2"
+              ]
+            }
+          }
+        },
+        {
+          "Custom": {
+            "name": "approval_decision",
+            "kind": {
+              "Enum": [
+                "APPROVED",
+                "REJECTED"
+              ]
+            }
+          }
+        },
+        "Uuid",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "c65a7e8403e7b0ee6a820c9917307e42332d50aff3810b408da37935d988aae8"
+}

@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "select requester_user_id,\n                  status as \"status: Status\"\n           from secret_requests\n           where secret_request_id = $1\n           for update",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "requester_user_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "status: Status",
+        "type_info": {
+          "Custom": {
+            "name": "secret_request_status",
+            "kind": {
+              "Enum": [
+                "PENDING_L1",
+                "PENDING_L2",
+                "APPROVED",
+                "REJECTED"
+              ]
+            }
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "23ba8dbb0a6d5a4009dea8b34cd6d7684a5aa785ed97711e4ff38101b38b29c3"
+}

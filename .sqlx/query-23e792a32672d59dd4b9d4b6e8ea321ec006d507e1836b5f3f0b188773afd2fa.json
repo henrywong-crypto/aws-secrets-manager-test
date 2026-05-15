@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "select g.group_id, g.group_name, g.description, g.created_at\n         from groups g\n         join user_group_memberships m on m.group_id = g.group_id\n         where m.user_id = $1\n         order by g.group_name",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "group_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "group_name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "description",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "23e792a32672d59dd4b9d4b6e8ea321ec006d507e1836b5f3f0b188773afd2fa"
+}

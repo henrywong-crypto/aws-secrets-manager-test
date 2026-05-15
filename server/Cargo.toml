@@ -1,0 +1,34 @@
+[package]
+name         = "server"
+version      = { workspace = true }
+edition      = { workspace = true }
+rust-version = { workspace = true }
+license      = { workspace = true }
+publish      = { workspace = true }
+
+[[bin]]
+name = "aws-secrets-portal"
+path = "src/main.rs"
+
+[dependencies]
+myhandlers      = { path = "../myhandlers" }
+secret_requests = { path = "../secret_requests" }
+groups          = { path = "../groups" }
+approval_flows  = { path = "../approval_flows" }
+prefix_policies = { path = "../prefix_policies" }
+users           = { path = "../users" }
+
+anyhow                 = { workspace = true }
+aws-config             = { workspace = true }
+aws-sdk-kms            = { workspace = true }
+aws-sdk-secretsmanager = { workspace = true }
+axum                   = { workspace = true }
+config                 = { workspace = true }
+dotenv                 = { workspace = true }
+serde                  = { workspace = true }
+serde_json             = { workspace = true }
+sqlx                   = { workspace = true }
+tokio                  = { workspace = true }
+tracing                = { workspace = true }
+tracing-subscriber     = { workspace = true }
+uuid                   = { workspace = true }

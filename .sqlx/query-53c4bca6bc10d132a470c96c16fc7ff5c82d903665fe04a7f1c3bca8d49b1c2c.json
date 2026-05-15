@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "update prefix_policies\n         set prefix = $1, aws_account_id = $2, aws_region = $3,\n             requester_group_id = $4, flow_id = $5,\n             tags = $6, updated_at = now()\n         where policy_id = $7",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Uuid",
+        "Uuid",
+        "Text",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "53c4bca6bc10d132a470c96c16fc7ff5c82d903665fe04a7f1c3bca8d49b1c2c"
+}

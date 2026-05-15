@@ -1,0 +1,25 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "insert into secret_requests (secret_name, encrypted_value, requester_user_id, reason)\n         values ($1, $2, $3, $4)\n         returning secret_request_id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "secret_request_id",
+        "type_info": "Uuid"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "ede7b797585bb4830d06e375f1241a85fae1b7c33099f8f344e636a0d189ed51"
+}

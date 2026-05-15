@@ -1,0 +1,68 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "select policy_id, prefix, aws_account_id, aws_region,\n                requester_group_id, flow_id, tags, created_at, updated_at\n         from prefix_policies\n         order by length(prefix) desc, prefix",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "policy_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "prefix",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "aws_account_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "aws_region",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "requester_group_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 5,
+        "name": "flow_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 6,
+        "name": "tags",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 7,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 8,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "2e2a673bfbbec3e8401902eb8aef571339b851220749716d7a6cbcc0b7734b71"
+}

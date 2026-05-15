@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "insert into users (user_email) values ($1)\n         on conflict (user_email) do nothing",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Varchar"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a37e68effcaa5f8af2660d68164eb567e82e65777dfb8b6e75ff99e044ee73b2"
+}

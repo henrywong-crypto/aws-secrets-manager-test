@@ -1,0 +1,25 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "insert into approval_flows (flow_name, description, l1_approver_group_id, l2_approver_group_id)\n         values ($1, $2, $3, $4)\n         returning flow_id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "flow_id",
+        "type_info": "Uuid"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "999015ed727e2a29e2915ec56ba198fb88698a4b723ea848ae190c9316ba325d"
+}

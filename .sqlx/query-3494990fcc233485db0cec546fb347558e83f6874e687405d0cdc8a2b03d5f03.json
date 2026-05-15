@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "update secret_requests\n         set status = $1,\n             resolved_at = case when $2 then now() else null end\n         where secret_request_id = $3",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        {
+          "Custom": {
+            "name": "secret_request_status",
+            "kind": {
+              "Enum": [
+                "PENDING_L1",
+                "PENDING_L2",
+                "APPROVED",
+                "REJECTED"
+              ]
+            }
+          }
+        },
+        "Bool",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "3494990fcc233485db0cec546fb347558e83f6874e687405d0cdc8a2b03d5f03"
+}
