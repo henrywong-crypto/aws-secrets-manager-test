@@ -1,12 +1,5 @@
-do $$ begin
-    create type approval_decision as enum ('APPROVED', 'REJECTED');
-exception when duplicate_object then null;
-end $$;
-
-do $$ begin
-    create type approval_level as enum ('L1', 'L2');
-exception when duplicate_object then null;
-end $$;
+create type approval_decision as enum ('APPROVED', 'REJECTED');
+create type approval_level as enum ('L1', 'L2');
 
 create table if not exists request_approvals (
     approval_id       uuid              primary key default uuid_generate_v4(),

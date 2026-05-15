@@ -1,7 +1,4 @@
-do $$ begin
-    create type secret_request_status as enum ('PENDING_L1', 'PENDING_L2', 'APPROVED', 'REJECTED');
-exception when duplicate_object then null;
-end $$;
+create type secret_request_status as enum ('PENDING_L1', 'PENDING_L2', 'APPROVED', 'REJECTED');
 
 create table if not exists secret_requests (
     secret_request_id uuid                  primary key default uuid_generate_v4(),
