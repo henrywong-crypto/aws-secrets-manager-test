@@ -5,13 +5,13 @@ use uuid::Uuid;
 
 #[derive(Clone, Debug)]
 pub struct Flow {
-    pub flow_id:              Uuid,
-    pub flow_name:             String,
-    pub description:           Option<String>,
-    pub l1_approver_group_id:  Uuid,
-    pub l2_approver_group_id:  Uuid,
-    pub created_at:            DateTime<Utc>,
-    pub updated_at:            DateTime<Utc>,
+    pub flow_id: Uuid,
+    pub flow_name: String,
+    pub description: Option<String>,
+    pub l1_approver_group_id: Uuid,
+    pub l2_approver_group_id: Uuid,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
 }
 
 pub async fn create_flow(

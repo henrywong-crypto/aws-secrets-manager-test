@@ -27,8 +27,8 @@ type SecretStore = Arc<RwLock<HashMap<String, Map<String, Value>>>>;
 
 #[derive(Clone)]
 struct AppCtx {
-    pool:              Arc<PgPool>,
-    users:             Arc<HashMap<String, Uuid>>,
+    pool: Arc<PgPool>,
+    users: Arc<HashMap<String, Uuid>>,
     simulated_secrets: SecretStore,
 }
 
@@ -45,12 +45,12 @@ fn default_as() -> String {
 #[derive(Deserialize)]
 struct DecisionForm {
     action: String,
-    note:   String,
+    note: String,
 }
 
 #[derive(Deserialize)]
 struct NewGroupForm {
-    group_name:  String,
+    group_name: String,
     description: String,
 }
 
@@ -66,18 +66,18 @@ struct UserIdForm {
 
 #[derive(Deserialize)]
 struct PrefixForm {
-    prefix:               String,
-    aws_account_id:       String,
-    aws_region:           String,
-    requester_group_id:   Uuid,
-    flow_id:              Uuid,
-    tags:                 String,
+    prefix: String,
+    aws_account_id: String,
+    aws_region: String,
+    requester_group_id: Uuid,
+    flow_id: Uuid,
+    tags: String,
 }
 
 #[derive(Deserialize)]
 struct FlowForm {
-    flow_name:            String,
-    description:          String,
+    flow_name: String,
+    description: String,
     l1_approver_group_id: Uuid,
     l2_approver_group_id: Uuid,
 }
@@ -97,8 +97,8 @@ async fn main() -> Result<()> {
 
     let users = seed(&pool).await?;
     let ctx = AppCtx {
-        pool:              Arc::new(pool),
-        users:             Arc::new(users),
+        pool: Arc::new(pool),
+        users: Arc::new(users),
         simulated_secrets: Arc::new(RwLock::new(HashMap::new())),
     };
 
@@ -107,19 +107,52 @@ async fn main() -> Result<()> {
         .route("/requests", get(list_requests).post(submit_request))
         .route("/requests/new", get(new_request_form))
         .route("/requests/{id}", get(request_detail))
-        .route("/requests/{id}/action", get(action_form).post(submit_action))
+        .route(
+            "/requests/{id}/action",
+            get(action_form).post(submit_action),
+        )
         .route("/admin", get(admin_index))
-        .route("/admin/groups", get(admin_groups_list).post(admin_groups_create))
+        .route(
+            "/admin/groups",
+            get(admin_groups_list).post(admin_groups_create),
+        )
         .route("/admin/groups/{id}", get(admin_group_detail))
-        .route("/admin/groups/{id}/delete", axum::routing::post(admin_group_delete))
-        .route("/admin/groups/{id}/members", axum::routing::post(admin_group_add_member))
-        .route("/admin/groups/{id}/members/remove", axum::routing::post(admin_group_remove_member))
-        .route("/admin/prefixes", get(admin_prefixes_list).post(admin_prefixes_create))
-        .route("/admin/prefixes/{id}", get(admin_prefix_detail).post(admin_prefix_update))
-        .route("/admin/prefixes/{id}/delete", axum::routing::post(admin_prefix_delete))
-        .route("/admin/flows", get(admin_flows_list).post(admin_flows_create))
-        .route("/admin/flows/{id}", get(admin_flow_detail).post(admin_flow_update))
-        .route("/admin/flows/{id}/delete", axum::routing::post(admin_flow_delete))
+        .route(
+            "/admin/groups/{id}/delete",
+            axum::routing::post(admin_group_delete),
+        )
+        .route(
+            "/admin/groups/{id}/members",
+            axum::routing::post(admin_group_add_member),
+        )
+        .route(
+            "/admin/groups/{id}/members/remove",
+            axum::routing::post(admin_group_remove_member),
+        )
+        .route(
+            "/admin/prefixes",
+            get(admin_prefixes_list).post(admin_prefixes_create),
+        )
+        .route(
+            "/admin/prefixes/{id}",
+            get(admin_prefix_detail).post(admin_prefix_update),
+        )
+        .route(
+            "/admin/prefixes/{id}/delete",
+            axum::routing::post(admin_prefix_delete),
+        )
+        .route(
+            "/admin/flows",
+            get(admin_flows_list).post(admin_flows_create),
+        )
+        .route(
+            "/admin/flows/{id}",
+            get(admin_flow_detail).post(admin_flow_update),
+        )
+        .route(
+            "/admin/flows/{id}/delete",
+            axum::routing::post(admin_flow_delete),
+        )
         .with_state(ctx);
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:3000").await?;
@@ -130,31 +163,48 @@ async fn main() -> Result<()> {
 
 async fn seed(pool: &PgPool) -> Result<HashMap<String, Uuid>> {
     let alice = upsert_user(pool, "alice@example.com").await?;
-    let bob   = upsert_user(pool, "bob@example.com").await?;
+    let bob = upsert_user(pool, "bob@example.com").await?;
     let carol = upsert_user(pool, "carol@example.com").await?;
     let admin = upsert_user(pool, "admin@example.com").await?;
 
-    let engineers         = ensure_group(pool, "engineers",         Some("default requesters")).await?;
-    let engineering_leads = ensure_group(pool, "engineering-leads", Some("L1 approvers in default-flow")).await?;
-    let platform_owners   = ensure_group(pool, "platform-owners",   Some("L2 approvers in default-flow")).await?;
-    let pa = ensure_group(pool, ADMIN_GROUP, Some("May manage groups, flows, and prefix policies")).await?;
+    let engineers = ensure_group(pool, "engineers", Some("default requesters")).await?;
+    let engineering_leads = ensure_group(
+        pool,
+        "engineering-leads",
+        Some("L1 approvers in default-flow"),
+    )
+    .await?;
+    let platform_owners = ensure_group(
+        pool,
+        "platform-owners",
+        Some("L2 approvers in default-flow"),
+    )
+    .await?;
+    let pa = ensure_group(
+        pool,
+        ADMIN_GROUP,
+        Some("May manage groups, flows, and prefix policies"),
+    )
+    .await?;
 
     groups::add_member(pool, alice, engineers).await?;
-    groups::add_member(pool, bob,   engineering_leads).await?;
+    groups::add_member(pool, bob, engineering_leads).await?;
     groups::add_member(pool, carol, platform_owners).await?;
     groups::add_member(pool, admin, pa).await?;
 
     if prefix_policies::list_policies(pool).await?.is_empty() {
         let flow_id = match approval_flows::get_flow_by_name(pool, "default-flow").await? {
             Some(f) => f.flow_id,
-            None => approval_flows::create_flow(
-                pool,
-                "default-flow",
-                Some("L1: engineering-leads. L2: platform-owners."),
-                engineering_leads,
-                platform_owners,
-            )
-            .await?,
+            None => {
+                approval_flows::create_flow(
+                    pool,
+                    "default-flow",
+                    Some("L1: engineering-leads. L2: platform-owners."),
+                    engineering_leads,
+                    platform_owners,
+                )
+                .await?
+            }
         };
         let mut tags = HashMap::new();
         tags.insert("env".to_string(), "prod".to_string());
@@ -172,7 +222,7 @@ async fn seed(pool: &PgPool) -> Result<HashMap<String, Uuid>> {
 
     Ok(HashMap::from([
         ("alice@example.com".into(), alice),
-        ("bob@example.com".into(),   bob),
+        ("bob@example.com".into(), bob),
         ("carol@example.com".into(), carol),
         ("admin@example.com".into(), admin),
     ]))
@@ -207,30 +257,50 @@ async fn list_requests(
     let policies = prefix_policies::list_policies(&ctx.pool).await?;
     let flows = approval_flows::list_flows(&ctx.pool).await?;
     let flow_for = |flow_id: Uuid| flows.iter().find(|f| f.flow_id == flow_id);
-    let l1_policies: Vec<&PrefixPolicy> = policies.iter()
-        .filter(|p| flow_for(p.flow_id)
-            .is_some_and(|f| viewer_group_ids.contains(&f.l1_approver_group_id)))
+    let l1_policies: Vec<&PrefixPolicy> = policies
+        .iter()
+        .filter(|p| {
+            flow_for(p.flow_id).is_some_and(|f| viewer_group_ids.contains(&f.l1_approver_group_id))
+        })
         .collect();
-    let l2_policies: Vec<&PrefixPolicy> = policies.iter()
-        .filter(|p| flow_for(p.flow_id)
-            .is_some_and(|f| viewer_group_ids.contains(&f.l2_approver_group_id)))
+    let l2_policies: Vec<&PrefixPolicy> = policies
+        .iter()
+        .filter(|p| {
+            flow_for(p.flow_id).is_some_and(|f| viewer_group_ids.contains(&f.l2_approver_group_id))
+        })
         .collect();
 
     let all = fetch_all_requests(&ctx.pool).await?;
-    let mine: Vec<&Request> = all.iter().filter(|r| r.requester_user_id == viewer_id).collect();
-    let pending_l1: Vec<&Request> = all.iter()
-        .filter(|r| r.status == Status::PendingL1
-                 && r.requester_user_id != viewer_id
-                 && l1_policies.iter().any(|p| r.secret_name.starts_with(&p.prefix)))
+    let mine: Vec<&Request> = all
+        .iter()
+        .filter(|r| r.requester_user_id == viewer_id)
         .collect();
-    let pending_l2: Vec<&Request> = all.iter()
-        .filter(|r| r.status == Status::PendingL2
-                 && r.requester_user_id != viewer_id
-                 && l2_policies.iter().any(|p| r.secret_name.starts_with(&p.prefix)))
+    let pending_l1: Vec<&Request> = all
+        .iter()
+        .filter(|r| {
+            r.status == Status::PendingL1
+                && r.requester_user_id != viewer_id
+                && l1_policies
+                    .iter()
+                    .any(|p| r.secret_name.starts_with(&p.prefix))
+        })
+        .collect();
+    let pending_l2: Vec<&Request> = all
+        .iter()
+        .filter(|r| {
+            r.status == Status::PendingL2
+                && r.requester_user_id != viewer_id
+                && l2_policies
+                    .iter()
+                    .any(|p| r.secret_name.starts_with(&p.prefix))
+        })
         .collect();
 
     let mut body = String::new();
-    body.push_str(&format!("<h1>Requests — acting as <b>{}</b></h1>", esc(&q.as_)));
+    body.push_str(&format!(
+        "<h1>Requests — acting as <b>{}</b></h1>",
+        esc(&q.as_)
+    ));
 
     body.push_str("<h2>My requests</h2>");
     body.push_str(&render_requests_table(&mine, &ctx, &q.as_, false));
@@ -270,7 +340,9 @@ async fn submit_request(
     let mut pairs: Vec<(String, String)> = Vec::new();
     let mut max_idx: i64 = -1;
     for i in 0..1000 {
-        let Some(k) = form.get(&format!("key_{i}")) else { break };
+        let Some(k) = form.get(&format!("key_{i}")) else {
+            break;
+        };
         let v = form.get(&format!("value_{i}")).cloned().unwrap_or_default();
         pairs.push((k.clone(), v));
         max_idx = i as i64;
@@ -290,7 +362,10 @@ async fn submit_request(
         })
         .collect();
     if filtered.is_empty() {
-        return Err(AppError::new(StatusCode::BAD_REQUEST, "patch must have at least one key"));
+        return Err(AppError::new(
+            StatusCode::BAD_REQUEST,
+            "patch must have at least one key",
+        ));
     }
 
     let secret_name = secret_name.trim();
@@ -298,7 +373,10 @@ async fn submit_request(
         .await?
         .ok_or_else(|| AppError::new(StatusCode::BAD_REQUEST, "no matching prefix policy"))?;
     if !groups::is_member(&ctx.pool, viewer_id, policy.requester_group_id).await? {
-        return Err(AppError::new(StatusCode::FORBIDDEN, "not in requester group"));
+        return Err(AppError::new(
+            StatusCode::FORBIDDEN,
+            "not in requester group",
+        ));
     }
 
     let canonical: Map<String, Value> = filtered
@@ -362,7 +440,8 @@ async fn request_detail(
 ) -> Result<Html<String>, AppError> {
     let viewer_id = resolve_viewer(&ctx, &q.as_)?;
 
-    let req = get_request(&ctx.pool, id).await?
+    let req = get_request(&ctx.pool, id)
+        .await?
         .ok_or_else(|| AppError::new(StatusCode::NOT_FOUND, "request not found"))?;
     let approvals = list_approvals(&ctx.pool, id).await?;
     let requester = email_for(&ctx, req.requester_user_id);
@@ -384,7 +463,9 @@ async fn request_detail(
         esc(&req.reason),
         req.status,
         req.created_at,
-        req.resolved_at.map(|t| t.to_string()).unwrap_or_else(|| "—".into()),
+        req.resolved_at
+            .map(|t| t.to_string())
+            .unwrap_or_else(|| "—".into()),
     ));
 
     body.push_str("<h2>Patch</h2>");
@@ -405,7 +486,12 @@ async fn request_detail(
         ));
     }
 
-    Ok(Html(page("Request", &q.as_, &format!("/requests/{id}"), &body)))
+    Ok(Html(page(
+        "Request",
+        &q.as_,
+        &format!("/requests/{id}"),
+        &body,
+    )))
 }
 
 async fn action_form(
@@ -415,9 +501,11 @@ async fn action_form(
 ) -> Result<Html<String>, AppError> {
     let viewer_id = resolve_viewer(&ctx, &q.as_)?;
 
-    let req = get_request(&ctx.pool, id).await?
+    let req = get_request(&ctx.pool, id)
+        .await?
         .ok_or_else(|| AppError::new(StatusCode::NOT_FOUND, "request not found"))?;
-    let group = eligibility(&ctx, &req, viewer_id).await?
+    let group = eligibility(&ctx, &req, viewer_id)
+        .await?
         .ok_or_else(|| AppError::new(StatusCode::FORBIDDEN, "not eligible to act"))?;
 
     let body = format!(
@@ -449,7 +537,12 @@ async fn action_form(
         group = esc(&group),
         patch = render_patch(&req.encrypted_value),
     );
-    Ok(Html(page("Act", &q.as_, &format!("/requests/{id}/action"), &body)))
+    Ok(Html(page(
+        "Act",
+        &q.as_,
+        &format!("/requests/{id}/action"),
+        &body,
+    )))
 }
 
 async fn submit_action(
@@ -460,14 +553,16 @@ async fn submit_action(
 ) -> Result<Redirect, AppError> {
     let viewer_id = resolve_viewer(&ctx, &q.as_)?;
 
-    let req = get_request(&ctx.pool, id).await?
+    let req = get_request(&ctx.pool, id)
+        .await?
         .ok_or_else(|| AppError::new(StatusCode::NOT_FOUND, "request not found"))?;
-    let group = eligibility(&ctx, &req, viewer_id).await?
+    let group = eligibility(&ctx, &req, viewer_id)
+        .await?
         .ok_or_else(|| AppError::new(StatusCode::FORBIDDEN, "not eligible to act"))?;
 
     let decision = match form.action.as_str() {
         "approve" => Decision::Approved,
-        "reject"  => Decision::Rejected,
+        "reject" => Decision::Rejected,
         _ => return Err(AppError::new(StatusCode::BAD_REQUEST, "unknown action")),
     };
     let note = Some(form.note.trim()).filter(|s| !s.is_empty());
@@ -515,16 +610,21 @@ async fn eligibility(
     if !groups::is_member(&ctx.pool, viewer_id, group_id).await? {
         return Ok(None);
     }
-    let group = groups::get_group(&ctx.pool, group_id).await?
+    let group = groups::get_group(&ctx.pool, group_id)
+        .await?
         .ok_or_else(|| AppError::new(StatusCode::INTERNAL_SERVER_ERROR, "group missing"))?;
     Ok(Some(group.group_name))
 }
 
 async fn require_admin(ctx: &AppCtx, viewer_id: Uuid) -> Result<(), AppError> {
-    let admin_group = groups::get_group_by_name(&ctx.pool, ADMIN_GROUP).await?
+    let admin_group = groups::get_group_by_name(&ctx.pool, ADMIN_GROUP)
+        .await?
         .ok_or_else(|| AppError::new(StatusCode::INTERNAL_SERVER_ERROR, "admin group missing"))?;
     if !groups::is_member(&ctx.pool, viewer_id, admin_group.group_id).await? {
-        return Err(AppError::new(StatusCode::FORBIDDEN, "admin access required"));
+        return Err(AppError::new(
+            StatusCode::FORBIDDEN,
+            "admin access required",
+        ));
     }
     Ok(())
 }
@@ -559,7 +659,9 @@ async fn admin_groups_list(
     let viewer_id = resolve_viewer(&ctx, &q.as_)?;
     require_admin(&ctx, viewer_id).await?;
 
-    let mut body = String::from("<h1>Groups</h1><table><tr><th>Name</th><th>Description</th><th>Members</th><th></th></tr>");
+    let mut body = String::from(
+        "<h1>Groups</h1><table><tr><th>Name</th><th>Description</th><th>Members</th><th></th></tr>",
+    );
     for g in groups::list_groups(&ctx.pool).await? {
         let count = groups::list_members(&ctx.pool, g.group_id).await?.len();
         body.push_str(&format!(
@@ -596,7 +698,10 @@ async fn admin_groups_create(
 
     let name = form.group_name.trim();
     if name.is_empty() {
-        return Err(AppError::new(StatusCode::BAD_REQUEST, "group name required"));
+        return Err(AppError::new(
+            StatusCode::BAD_REQUEST,
+            "group name required",
+        ));
     }
     let description = Some(form.description.trim()).filter(|s| !s.is_empty());
     groups::create_group(&ctx.pool, name, description).await?;
@@ -611,7 +716,8 @@ async fn admin_group_detail(
     let viewer_id = resolve_viewer(&ctx, &q.as_)?;
     require_admin(&ctx, viewer_id).await?;
 
-    let group = groups::get_group(&ctx.pool, id).await?
+    let group = groups::get_group(&ctx.pool, id)
+        .await?
         .ok_or_else(|| AppError::new(StatusCode::NOT_FOUND, "group not found"))?;
     let member_ids = groups::list_members(&ctx.pool, id).await?;
 
@@ -663,7 +769,12 @@ async fn admin_group_detail(
         ));
     }
 
-    Ok(Html(page("Group", &q.as_, &format!("/admin/groups/{id}"), &body)))
+    Ok(Html(page(
+        "Group",
+        &q.as_,
+        &format!("/admin/groups/{id}"),
+        &body,
+    )))
 }
 
 async fn admin_group_delete(
@@ -674,10 +785,14 @@ async fn admin_group_delete(
     let viewer_id = resolve_viewer(&ctx, &q.as_)?;
     require_admin(&ctx, viewer_id).await?;
 
-    let group = groups::get_group(&ctx.pool, id).await?
+    let group = groups::get_group(&ctx.pool, id)
+        .await?
         .ok_or_else(|| AppError::new(StatusCode::NOT_FOUND, "group not found"))?;
     if group.group_name == ADMIN_GROUP {
-        return Err(AppError::new(StatusCode::BAD_REQUEST, "cannot delete portal-admins"));
+        return Err(AppError::new(
+            StatusCode::BAD_REQUEST,
+            "cannot delete portal-admins",
+        ));
     }
     groups::delete_group(&ctx.pool, id).await?;
     Ok(Redirect::to(&format!("/admin/groups?as={}", q.as_)))
@@ -715,7 +830,10 @@ async fn admin_group_remove_member(
     {
         let admins = groups::list_members(&ctx.pool, id).await?;
         if admins.len() <= 1 {
-            return Err(AppError::new(StatusCode::BAD_REQUEST, "cannot remove the last portal-admin"));
+            return Err(AppError::new(
+                StatusCode::BAD_REQUEST,
+                "cannot remove the last portal-admin",
+            ));
         }
     }
     groups::remove_member(&ctx.pool, form.user_id, id).await?;
@@ -770,7 +888,12 @@ async fn admin_prefixes_list(
         ));
     }
 
-    Ok(Html(page("Prefix policies", &q.as_, "/admin/prefixes", &body)))
+    Ok(Html(page(
+        "Prefix policies",
+        &q.as_,
+        "/admin/prefixes",
+        &body,
+    )))
 }
 
 async fn admin_prefixes_create(
@@ -803,7 +926,8 @@ async fn admin_prefix_detail(
     let viewer_id = resolve_viewer(&ctx, &q.as_)?;
     require_admin(&ctx, viewer_id).await?;
 
-    let policy = prefix_policies::get_policy(&ctx.pool, id).await?
+    let policy = prefix_policies::get_policy(&ctx.pool, id)
+        .await?
         .ok_or_else(|| AppError::new(StatusCode::NOT_FOUND, "policy not found"))?;
     let groups_list = groups::list_groups(&ctx.pool).await?;
     let flows_list = approval_flows::list_flows(&ctx.pool).await?;
@@ -825,7 +949,12 @@ async fn admin_prefix_detail(
         as_ = esc(&q.as_),
     ));
 
-    Ok(Html(page("Prefix", &q.as_, &format!("/admin/prefixes/{id}"), &body)))
+    Ok(Html(page(
+        "Prefix",
+        &q.as_,
+        &format!("/admin/prefixes/{id}"),
+        &body,
+    )))
 }
 
 async fn admin_prefix_update(
@@ -879,7 +1008,11 @@ fn email_for(ctx: &AppCtx, user_id: Uuid) -> String {
 }
 
 fn group_name(groups: &[groups::Group], id: Uuid) -> String {
-    groups.iter().find(|g| g.group_id == id).map(|g| g.group_name.clone()).unwrap_or_else(|| id.to_string())
+    groups
+        .iter()
+        .find(|g| g.group_id == id)
+        .map(|g| g.group_name.clone())
+        .unwrap_or_else(|| id.to_string())
 }
 
 async fn fetch_all_requests(pool: &PgPool) -> Result<Vec<Request>, AppError> {
@@ -904,15 +1037,26 @@ fn parse_patch(raw: &str) -> Result<Vec<(String, String)>, AppError> {
         .map_err(|_| AppError::new(StatusCode::BAD_REQUEST, "invalid JSON"))?;
     let obj = match value {
         Value::Object(m) => m,
-        _ => return Err(AppError::new(StatusCode::BAD_REQUEST, "JSON must be an object")),
+        _ => {
+            return Err(AppError::new(
+                StatusCode::BAD_REQUEST,
+                "JSON must be an object",
+            ));
+        }
     };
     if obj.is_empty() {
-        return Err(AppError::new(StatusCode::BAD_REQUEST, "patch must contain at least one key"));
+        return Err(AppError::new(
+            StatusCode::BAD_REQUEST,
+            "patch must contain at least one key",
+        ));
     }
     obj.into_iter()
         .map(|(k, v)| match v {
             Value::String(s) => Ok((k, s)),
-            _ => Err(AppError::new(StatusCode::BAD_REQUEST, "all patch values must be strings")),
+            _ => Err(AppError::new(
+                StatusCode::BAD_REQUEST,
+                "all patch values must be strings",
+            )),
         })
         .collect()
 }
@@ -926,17 +1070,30 @@ fn parse_tags(raw: &str) -> Result<HashMap<String, String>, AppError> {
         .map_err(|_| AppError::new(StatusCode::BAD_REQUEST, "invalid JSON in tags"))?;
     let obj = match value {
         Value::Object(m) => m,
-        _ => return Err(AppError::new(StatusCode::BAD_REQUEST, "tags must be a JSON object")),
+        _ => {
+            return Err(AppError::new(
+                StatusCode::BAD_REQUEST,
+                "tags must be a JSON object",
+            ));
+        }
     };
     obj.into_iter()
         .map(|(k, v)| match v {
             Value::String(s) => Ok((k, s)),
-            _ => Err(AppError::new(StatusCode::BAD_REQUEST, "all tag values must be strings")),
+            _ => Err(AppError::new(
+                StatusCode::BAD_REQUEST,
+                "all tag values must be strings",
+            )),
         })
         .collect()
 }
 
-fn render_requests_table(rows: &[&Request], ctx: &AppCtx, viewer: &str, show_requester: bool) -> String {
+fn render_requests_table(
+    rows: &[&Request],
+    ctx: &AppCtx,
+    viewer: &str,
+    show_requester: bool,
+) -> String {
     if rows.is_empty() {
         return "<p><i>none</i></p>".into();
     }
@@ -948,11 +1105,17 @@ fn render_requests_table(rows: &[&Request], ctx: &AppCtx, viewer: &str, show_req
     for r in rows {
         s.push_str(&format!("<tr><td>{}</td>", esc(&r.secret_name)));
         if show_requester {
-            s.push_str(&format!("<td>{}</td>", esc(&email_for(ctx, r.requester_user_id))));
+            s.push_str(&format!(
+                "<td>{}</td>",
+                esc(&email_for(ctx, r.requester_user_id))
+            ));
         }
         s.push_str(&format!(
             "<td>{:?}</td><td>{}</td><td><a href=\"/requests/{}?as={}\">open</a></td></tr>",
-            r.status, r.created_at, r.secret_request_id, esc(viewer),
+            r.status,
+            r.created_at,
+            r.secret_request_id,
+            esc(viewer),
         ));
     }
     s.push_str("</table>");
@@ -964,8 +1127,15 @@ fn render_patch(json_str: &str) -> String {
         Ok(Value::Object(obj)) if !obj.is_empty() => {
             let mut s = String::from("<table><tr><th>Key</th><th>New value</th></tr>");
             for (k, v) in obj {
-                let display = v.as_str().map(String::from).unwrap_or_else(|| v.to_string());
-                s.push_str(&format!("<tr><td>{}</td><td>{}</td></tr>", esc(&k), esc(&display)));
+                let display = v
+                    .as_str()
+                    .map(String::from)
+                    .unwrap_or_else(|| v.to_string());
+                s.push_str(&format!(
+                    "<tr><td>{}</td><td>{}</td></tr>",
+                    esc(&k),
+                    esc(&display)
+                ));
             }
             s.push_str("</table>");
             s
@@ -983,8 +1153,15 @@ fn render_secret_state(obj: Option<&Map<String, Value>>) -> String {
     }
     let mut s = String::from("<table><tr><th>Key</th><th>Value</th></tr>");
     for (k, v) in obj {
-        let display = v.as_str().map(String::from).unwrap_or_else(|| v.to_string());
-        s.push_str(&format!("<tr><td>{}</td><td>{}</td></tr>", esc(k), esc(&display)));
+        let display = v
+            .as_str()
+            .map(String::from)
+            .unwrap_or_else(|| v.to_string());
+        s.push_str(&format!(
+            "<tr><td>{}</td><td>{}</td></tr>",
+            esc(k),
+            esc(&display)
+        ));
     }
     s.push_str("</table>");
     s
@@ -994,7 +1171,9 @@ fn render_ladder(approvals: &[Approval], ctx: &AppCtx) -> String {
     if approvals.is_empty() {
         return "<p><i>no approvals yet</i></p>".into();
     }
-    let mut s = String::from("<table><tr><th>Level</th><th>Decision</th><th>By</th><th>Group</th><th>Note</th><th>When</th></tr>");
+    let mut s = String::from(
+        "<table><tr><th>Level</th><th>Decision</th><th>By</th><th>Group</th><th>Note</th><th>When</th></tr>",
+    );
     for a in approvals {
         s.push_str(&format!(
             "<tr><td>{:?}</td><td>{:?}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>",
@@ -1024,7 +1203,9 @@ async fn admin_flows_list(
     if flows.is_empty() {
         body.push_str("<p><i>none</i></p>");
     } else {
-        body.push_str("<table><tr><th>Name</th><th>Description</th><th>L1</th><th>L2</th><th></th></tr>");
+        body.push_str(
+            "<table><tr><th>Name</th><th>Description</th><th>L1</th><th>L2</th><th></th></tr>",
+        );
         for f in &flows {
             body.push_str(&format!(
                 "<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td>\
@@ -1063,7 +1244,10 @@ async fn admin_flows_create(
         return Err(AppError::new(StatusCode::BAD_REQUEST, "flow name required"));
     }
     if form.l1_approver_group_id == form.l2_approver_group_id {
-        return Err(AppError::new(StatusCode::BAD_REQUEST, "L1 and L2 must be different groups"));
+        return Err(AppError::new(
+            StatusCode::BAD_REQUEST,
+            "L1 and L2 must be different groups",
+        ));
     }
     let description = Some(form.description.trim()).filter(|s| !s.is_empty());
     approval_flows::create_flow(
@@ -1085,7 +1269,8 @@ async fn admin_flow_detail(
     let viewer_id = resolve_viewer(&ctx, &q.as_)?;
     require_admin(&ctx, viewer_id).await?;
 
-    let flow = approval_flows::get_flow(&ctx.pool, id).await?
+    let flow = approval_flows::get_flow(&ctx.pool, id)
+        .await?
         .ok_or_else(|| AppError::new(StatusCode::NOT_FOUND, "flow not found"))?;
     let groups_list = groups::list_groups(&ctx.pool).await?;
 
@@ -1104,7 +1289,12 @@ async fn admin_flow_detail(
         as_ = esc(&q.as_),
     ));
 
-    Ok(Html(page("Flow", &q.as_, &format!("/admin/flows/{id}"), &body)))
+    Ok(Html(page(
+        "Flow",
+        &q.as_,
+        &format!("/admin/flows/{id}"),
+        &body,
+    )))
 }
 
 async fn admin_flow_update(
@@ -1121,7 +1311,10 @@ async fn admin_flow_update(
         return Err(AppError::new(StatusCode::BAD_REQUEST, "flow name required"));
     }
     if form.l1_approver_group_id == form.l2_approver_group_id {
-        return Err(AppError::new(StatusCode::BAD_REQUEST, "L1 and L2 must be different groups"));
+        return Err(AppError::new(
+            StatusCode::BAD_REQUEST,
+            "L1 and L2 must be different groups",
+        ));
     }
     let description = Some(form.description.trim()).filter(|s| !s.is_empty());
     approval_flows::update_flow(
@@ -1148,7 +1341,11 @@ async fn admin_flow_delete(
 }
 
 fn flow_name(flows: &[Flow], id: Uuid) -> String {
-    flows.iter().find(|f| f.flow_id == id).map(|f| f.flow_name.clone()).unwrap_or_else(|| id.to_string())
+    flows
+        .iter()
+        .find(|f| f.flow_id == id)
+        .map(|f| f.flow_name.clone())
+        .unwrap_or_else(|| id.to_string())
 }
 
 fn format_tags_inline(tags: &HashMap<String, String>) -> String {
@@ -1163,17 +1360,25 @@ fn format_tags_inline(tags: &HashMap<String, String>) -> String {
 
 fn render_flow_form(action: &str, all_groups: &[groups::Group], existing: Option<&Flow>) -> String {
     let name = existing.map(|f| f.flow_name.as_str()).unwrap_or("");
-    let description = existing.and_then(|f| f.description.as_deref()).unwrap_or("");
+    let description = existing
+        .and_then(|f| f.description.as_deref())
+        .unwrap_or("");
     let l1 = existing.map(|f| f.l1_approver_group_id);
     let l2 = existing.map(|f| f.l2_approver_group_id);
 
     let opts = |selected: Option<Uuid>| -> String {
         let mut s = String::new();
         for g in all_groups {
-            let sel = if selected == Some(g.group_id) { " selected" } else { "" };
+            let sel = if selected == Some(g.group_id) {
+                " selected"
+            } else {
+                ""
+            };
             s.push_str(&format!(
                 "<option value=\"{}\"{}>{}</option>",
-                g.group_id, sel, esc(&g.group_name),
+                g.group_id,
+                sel,
+                esc(&g.group_name),
             ));
         }
         s
@@ -1201,19 +1406,27 @@ fn render_prefix_form(
     existing: Option<&PrefixPolicy>,
     tags_text: &str,
 ) -> String {
-    let prefix    = existing.map(|p| p.prefix.as_str()).unwrap_or("");
-    let account   = existing.map(|p| p.aws_account_id.as_str()).unwrap_or("");
-    let region    = existing.map(|p| p.aws_region.as_str()).unwrap_or("us-east-1");
+    let prefix = existing.map(|p| p.prefix.as_str()).unwrap_or("");
+    let account = existing.map(|p| p.aws_account_id.as_str()).unwrap_or("");
+    let region = existing
+        .map(|p| p.aws_region.as_str())
+        .unwrap_or("us-east-1");
     let req_group = existing.map(|p| p.requester_group_id);
-    let flow      = existing.map(|p| p.flow_id);
+    let flow = existing.map(|p| p.flow_id);
 
     let group_opts = |selected: Option<Uuid>| -> String {
         let mut s = String::new();
         for g in all_groups {
-            let sel = if selected == Some(g.group_id) { " selected" } else { "" };
+            let sel = if selected == Some(g.group_id) {
+                " selected"
+            } else {
+                ""
+            };
             s.push_str(&format!(
                 "<option value=\"{}\"{}>{}</option>",
-                g.group_id, sel, esc(&g.group_name),
+                g.group_id,
+                sel,
+                esc(&g.group_name),
             ));
         }
         s
@@ -1221,10 +1434,16 @@ fn render_prefix_form(
     let flow_opts = |selected: Option<Uuid>| -> String {
         let mut s = String::new();
         for f in all_flows {
-            let sel = if selected == Some(f.flow_id) { " selected" } else { "" };
+            let sel = if selected == Some(f.flow_id) {
+                " selected"
+            } else {
+                ""
+            };
             s.push_str(&format!(
                 "<option value=\"{}\"{}>{}</option>",
-                f.flow_id, sel, esc(&f.flow_name),
+                f.flow_id,
+                sel,
+                esc(&f.flow_name),
             ));
         }
         s

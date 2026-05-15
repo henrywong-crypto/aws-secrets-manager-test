@@ -9,22 +9,22 @@ pub use myerrors::AppError;
 
 #[derive(Clone)]
 pub struct AppState {
-    pub db_pool:           Arc<PgPool>,
-    pub kms_client:        KmsClient,
-    pub kms_key_arn:       String,
-    pub sm_clients:        Arc<HashMap<String, SecretsManagerClient>>,
+    pub db_pool: Arc<PgPool>,
+    pub kms_client: KmsClient,
+    pub kms_key_arn: String,
+    pub sm_clients: Arc<HashMap<String, SecretsManagerClient>>,
     pub l2_approver_group: String,
-    pub prefix_policies:   Arc<Vec<PrefixPolicy>>,
+    pub prefix_policies: Arc<Vec<PrefixPolicy>>,
 }
 
 #[derive(Clone, Debug)]
 pub struct PrefixPolicy {
-    pub prefix:            String,
-    pub aws_account_id:    String,
-    pub aws_region:        String,
-    pub allowed_group:     String,
+    pub prefix: String,
+    pub aws_account_id: String,
+    pub aws_region: String,
+    pub allowed_group: String,
     pub l1_approver_group: String,
-    pub tags:              HashMap<String, String>,
+    pub tags: HashMap<String, String>,
 }
 
 impl AppState {

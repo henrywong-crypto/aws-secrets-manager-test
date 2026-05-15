@@ -19,7 +19,9 @@ async fn main() -> Result<()> {
     tracing_subscriber::fmt::init();
 
     let cfg = load_config().context("load config")?;
-    let pool = setup_database(&cfg.database_url).await.context("database")?;
+    let pool = setup_database(&cfg.database_url)
+        .await
+        .context("database")?;
     sqlx::migrate!("../migrations")
         .run(&pool)
         .await
@@ -27,7 +29,9 @@ async fn main() -> Result<()> {
 
     let host = cfg.host.clone();
     let port = cfg.port;
-    let app_state = build_app_state(cfg, pool).await.context("build app state")?;
+    let app_state = build_app_state(cfg, pool)
+        .await
+        .context("build app state")?;
 
     let app = Router::new()
         .route("/health", get(health))

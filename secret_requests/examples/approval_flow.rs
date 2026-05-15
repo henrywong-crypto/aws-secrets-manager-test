@@ -20,7 +20,7 @@ async fn main() -> Result<()> {
         .context("run migrations")?;
 
     let alice = upsert_user(&pool, "alice@example.com").await?;
-    let bob   = upsert_user(&pool, "bob@example.com").await?;
+    let bob = upsert_user(&pool, "bob@example.com").await?;
     let carol = upsert_user(&pool, "carol@example.com").await?;
     let names: HashMap<Uuid, &str> =
         HashMap::from([(alice, "alice"), (bob, "bob"), (carol, "carol")]);
@@ -36,10 +36,26 @@ async fn main() -> Result<()> {
     .await?;
     print_state(&pool, ok_id, &names, "after alice submits").await?;
 
-    record_decision(&pool, ok_id, bob, "payments-leads", Decision::Approved, Some("LGTM")).await?;
+    record_decision(
+        &pool,
+        ok_id,
+        bob,
+        "payments-leads",
+        Decision::Approved,
+        Some("LGTM"),
+    )
+    .await?;
     print_state(&pool, ok_id, &names, "after bob L1-approves").await?;
 
-    record_decision(&pool, ok_id, carol, "security-team", Decision::Approved, Some("ok")).await?;
+    record_decision(
+        &pool,
+        ok_id,
+        carol,
+        "security-team",
+        Decision::Approved,
+        Some("ok"),
+    )
+    .await?;
     print_state(&pool, ok_id, &names, "after carol L2-approves").await?;
 
     println!("\n────── rejection at L1 ──────");
@@ -65,7 +81,16 @@ async fn main() -> Result<()> {
     print_state(&pool, rej_id, &names, "after bob L1-rejects").await?;
 
     println!("\n────── self-approval is blocked ──────");
-    match record_decision(&pool, ok_id, alice, "payments-leads", Decision::Approved, None).await {
+    match record_decision(
+        &pool,
+        ok_id,
+        alice,
+        "payments-leads",
+        Decision::Approved,
+        None,
+    )
+    .await
+    {
         Ok(()) => println!("  [unexpected] approve unexpectedly succeeded"),
         Err(err) => println!("  [expected error] {err}"),
     }

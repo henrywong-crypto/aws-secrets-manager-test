@@ -12,32 +12,32 @@ use sqlx::PgPool;
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct AppConfig {
-    pub host:              String,
-    pub port:              u16,
-    pub database_url:      String,
-    pub kms_key_arn:       String,
+    pub host: String,
+    pub port: u16,
+    pub database_url: String,
+    pub kms_key_arn: String,
     pub l2_approver_group: String,
     #[serde(default, rename = "prefix")]
-    pub prefixes:          Vec<PrefixConfig>,
+    pub prefixes: Vec<PrefixConfig>,
     #[serde(default, rename = "aws_account")]
-    pub aws_accounts:      Vec<AccountConfig>,
+    pub aws_accounts: Vec<AccountConfig>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct PrefixConfig {
-    pub prefix:            String,
-    pub aws_account_id:    String,
-    pub aws_region:        String,
-    pub allowed_group:     String,
+    pub prefix: String,
+    pub aws_account_id: String,
+    pub aws_region: String,
+    pub allowed_group: String,
     pub l1_approver_group: String,
     #[serde(default)]
-    pub tags:              HashMap<String, String>,
+    pub tags: HashMap<String, String>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct AccountConfig {
     pub account_id: String,
-    pub role_arn:   String,
+    pub role_arn: String,
 }
 
 pub fn load_config() -> Result<AppConfig> {
@@ -107,22 +107,22 @@ pub async fn build_app_state(cfg: AppConfig, pool: PgPool) -> Result<AppState> {
         .prefixes
         .into_iter()
         .map(|p| PrefixPolicy {
-            prefix:            p.prefix,
-            aws_account_id:    p.aws_account_id,
-            aws_region:        p.aws_region,
-            allowed_group:     p.allowed_group,
+            prefix: p.prefix,
+            aws_account_id: p.aws_account_id,
+            aws_region: p.aws_region,
+            allowed_group: p.allowed_group,
             l1_approver_group: p.l1_approver_group,
-            tags:              p.tags,
+            tags: p.tags,
         })
         .collect();
     prefix_policies.sort_by(|a, b| b.prefix.len().cmp(&a.prefix.len()));
 
     Ok(AppState {
-        db_pool:           Arc::new(pool),
+        db_pool: Arc::new(pool),
         kms_client,
-        kms_key_arn:       cfg.kms_key_arn,
-        sm_clients:        Arc::new(sm_clients),
+        kms_key_arn: cfg.kms_key_arn,
+        sm_clients: Arc::new(sm_clients),
         l2_approver_group: cfg.l2_approver_group,
-        prefix_policies:   Arc::new(prefix_policies),
+        prefix_policies: Arc::new(prefix_policies),
     })
 }

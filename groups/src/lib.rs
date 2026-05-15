@@ -5,17 +5,13 @@ use uuid::Uuid;
 
 #[derive(Clone, Debug)]
 pub struct Group {
-    pub group_id:    Uuid,
-    pub group_name:  String,
+    pub group_id: Uuid,
+    pub group_name: String,
     pub description: Option<String>,
-    pub created_at:  DateTime<Utc>,
+    pub created_at: DateTime<Utc>,
 }
 
-pub async fn create_group(
-    pool: &PgPool,
-    name: &str,
-    description: Option<&str>,
-) -> Result<Uuid> {
+pub async fn create_group(pool: &PgPool, name: &str, description: Option<&str>) -> Result<Uuid> {
     sqlx::query_scalar!(
         "insert into groups (group_name, description) values ($1, $2) returning group_id",
         name,

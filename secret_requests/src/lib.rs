@@ -4,7 +4,10 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, sqlx::Type)]
-#[sqlx(type_name = "secret_request_status", rename_all = "SCREAMING_SNAKE_CASE")]
+#[sqlx(
+    type_name = "secret_request_status",
+    rename_all = "SCREAMING_SNAKE_CASE"
+)]
 pub enum Status {
     PendingL1,
     PendingL2,
@@ -29,24 +32,24 @@ pub enum ApprovalLevel {
 #[derive(Clone, Debug)]
 pub struct Request {
     pub secret_request_id: Uuid,
-    pub secret_name:       String,
-    pub encrypted_value:   String,
+    pub secret_name: String,
+    pub encrypted_value: String,
     pub requester_user_id: Uuid,
-    pub reason:            String,
-    pub status:            Status,
-    pub created_at:        DateTime<Utc>,
-    pub resolved_at:       Option<DateTime<Utc>>,
+    pub reason: String,
+    pub status: Status,
+    pub created_at: DateTime<Utc>,
+    pub resolved_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Clone, Debug)]
 pub struct Approval {
-    pub approval_id:      Uuid,
-    pub level:            ApprovalLevel,
-    pub decision:         Decision,
+    pub approval_id: Uuid,
+    pub level: ApprovalLevel,
+    pub decision: Decision,
     pub approver_user_id: Uuid,
-    pub approver_group:   String,
-    pub note:             Option<String>,
-    pub created_at:       DateTime<Utc>,
+    pub approver_group: String,
+    pub note: Option<String>,
+    pub created_at: DateTime<Utc>,
 }
 
 pub async fn create_request(

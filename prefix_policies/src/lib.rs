@@ -7,15 +7,15 @@ use uuid::Uuid;
 
 #[derive(Clone, Debug)]
 pub struct PrefixPolicy {
-    pub policy_id:          Uuid,
-    pub prefix:             String,
-    pub aws_account_id:     String,
-    pub aws_region:         String,
+    pub policy_id: Uuid,
+    pub prefix: String,
+    pub aws_account_id: String,
+    pub aws_region: String,
     pub requester_group_id: Uuid,
-    pub flow_id:            Uuid,
-    pub tags:               HashMap<String, String>,
-    pub created_at:         DateTime<Utc>,
-    pub updated_at:         DateTime<Utc>,
+    pub flow_id: Uuid,
+    pub tags: HashMap<String, String>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -100,15 +100,15 @@ pub async fn list_policies(pool: &PgPool) -> Result<Vec<PrefixPolicy>> {
     rows.into_iter()
         .map(|r| {
             Ok(PrefixPolicy {
-                policy_id:          r.policy_id,
-                prefix:             r.prefix,
-                aws_account_id:     r.aws_account_id,
-                aws_region:         r.aws_region,
+                policy_id: r.policy_id,
+                prefix: r.prefix,
+                aws_account_id: r.aws_account_id,
+                aws_region: r.aws_region,
                 requester_group_id: r.requester_group_id,
-                flow_id:            r.flow_id,
-                tags:               serde_json::from_str(&r.tags).context("parse tags")?,
-                created_at:         r.created_at,
-                updated_at:         r.updated_at,
+                flow_id: r.flow_id,
+                tags: serde_json::from_str(&r.tags).context("parse tags")?,
+                created_at: r.created_at,
+                updated_at: r.updated_at,
             })
         })
         .collect()
@@ -128,15 +128,15 @@ pub async fn get_policy(pool: &PgPool, id: Uuid) -> Result<Option<PrefixPolicy>>
 
     let Some(r) = row else { return Ok(None) };
     Ok(Some(PrefixPolicy {
-        policy_id:          r.policy_id,
-        prefix:             r.prefix,
-        aws_account_id:     r.aws_account_id,
-        aws_region:         r.aws_region,
+        policy_id: r.policy_id,
+        prefix: r.prefix,
+        aws_account_id: r.aws_account_id,
+        aws_region: r.aws_region,
         requester_group_id: r.requester_group_id,
-        flow_id:            r.flow_id,
-        tags:               serde_json::from_str(&r.tags).context("parse tags")?,
-        created_at:         r.created_at,
-        updated_at:         r.updated_at,
+        flow_id: r.flow_id,
+        tags: serde_json::from_str(&r.tags).context("parse tags")?,
+        created_at: r.created_at,
+        updated_at: r.updated_at,
     }))
 }
 
@@ -159,14 +159,14 @@ pub async fn lookup_for_secret_name(
 
     let Some(r) = row else { return Ok(None) };
     Ok(Some(PrefixPolicy {
-        policy_id:          r.policy_id,
-        prefix:             r.prefix,
-        aws_account_id:     r.aws_account_id,
-        aws_region:         r.aws_region,
+        policy_id: r.policy_id,
+        prefix: r.prefix,
+        aws_account_id: r.aws_account_id,
+        aws_region: r.aws_region,
         requester_group_id: r.requester_group_id,
-        flow_id:            r.flow_id,
-        tags:               serde_json::from_str(&r.tags).context("parse tags")?,
-        created_at:         r.created_at,
-        updated_at:         r.updated_at,
+        flow_id: r.flow_id,
+        tags: serde_json::from_str(&r.tags).context("parse tags")?,
+        created_at: r.created_at,
+        updated_at: r.updated_at,
     }))
 }
