@@ -348,12 +348,11 @@ Domain crates depend only on `anyhow` + `sqlx` + `uuid` + `chrono`
 
 ---
 
-## 4. Schema (3 tables)
-
-## 4. Schema (6 tables)
+## 4. Schema (7 tables)
 
 Two-level approval. Group membership and approval policy both live in
-the DB, editable by the admin UI (§5).
+the DB, editable by the admin UI (§5). The admin set itself is **not**
+stored here — it lives in config (§5.4).
 
 ### `0_extensions.sql`
 ```sql
@@ -414,11 +413,6 @@ create table if not exists groups (
     description text,
     created_at  timestamptz not null default now()
 );
-
--- Always present. Membership in this group means "may use the admin UI".
-insert into groups (group_name, description)
-values ('portal-admins', 'May manage groups and prefix policies')
-on conflict (group_name) do nothing;
 ```
 
 ### `5_user_group_memberships.sql`
@@ -493,8 +487,10 @@ Earlier revisions of this section put policy in `config.toml` as
   (requester / L1 / L2), and a tag map.
 - **Cognito's group claim is ignored.** The portal looks up group
   membership in its own DB. Cognito provides only authenticated email.
-- **Admins** = members of the special `portal-admins` group. They edit
-  groups and prefix policies through the web UI (§6).
+- **Admins** = users whose email is in the config'd `admin_emails` list
+  (§5.4). They edit groups, flows, and prefix policies through the web
+  UI (§6). Admin set is **not** in the DB; cannot be elevated by a
+  compromised app process.
 
 ### 5.1 Matching rule (unchanged from prior config-based model)
 
@@ -533,16 +529,28 @@ declared account via `aws-config`'s `AssumeRoleProvider`. Same map on
 an account not declared in config, that policy's L2 approve fails at
 runtime with a 500 — there's no way to mint credentials for it.
 
-### 5.4 Bootstrap
+### 5.4 Admin set (config, not DB)
 
-Cold start: nobody is in `portal-admins`. Config carries:
+The set of admins is a list of email addresses in `config.toml`:
+
 ```toml
-bootstrap_admin_email = "first.admin@example.com"
+admin_emails = ["alice@company.com", "bob@company.com"]
 ```
-On boot, if `portal-admins` has zero members, the portal upserts the
-configured email and adds them. Re-runs are idempotent and harmless;
-once anyone else is added, the field is effectively ignored (the empty
-check no longer holds).
+
+`require_admin` checks the authenticated user's email (case-insensitive)
+against this list. No DB lookup, no group membership, no UI to edit.
+
+**Why config-only**:
+- A compromised app cannot escalate privilege — the admin set is read
+  at boot from a deployment artifact and never written to.
+- No "cannot delete the admin group", "cannot remove last admin",
+  or other guard-rail code; there's no admin-group-as-data to defend.
+- Changes to the admin set are reviewed via the same PR flow as the
+  rest of `config.toml`. Adding/removing an admin is a deploy.
+
+**Tradeoff**: every admin change requires a redeploy. For a security
+control with usually-stable membership, this is the right side of the
+tradeoff. (Compare: gateway also keeps Cognito creds in config, not DB.)
 
 ### 5.5 Failure modes
 
@@ -551,11 +559,10 @@ check no longer holds).
 | User types a name with no matching prefix | 400. |
 | Prefix policy deleted between submit and approve | Approve returns 409; row stays pending until ops resolves it. |
 | Group referenced by a prefix policy is deleted | Postgres rejects (`on delete restrict`). |
-| User removed from `portal-admins` while logged in | Next admin action returns 403; existing tabs continue to render but POSTs fail. |
+| User removed from `admin_emails` and redeployed | Next admin action returns 403. |
 | AssumeRole fails at boot for one account | Boot fails. |
 | AssumeRole creds expire at runtime | SDK auto-refreshes. |
 | `PutSecretValue` returns `ResourceNotFoundException` | 500 "secret missing in AWS"; row stays pending; ops creates the secret in AWS or rejects the row. |
-| Sole `portal-admins` member tries to remove themselves | 400 "cannot remove the last portal-admin". |
 
 ---
 
@@ -855,29 +862,22 @@ cognito_user_pool_id  = "..."
 csrf_cookie_key = "…64 comma-separated bytes…"
 csrf_salt       = "…"
 
-l2_approver_group = "security-team"
-
-[[prefix]]
-prefix            = "app/payments/prod/"
-aws_account_id    = "111111111111"
-aws_region        = "us-east-1"
-allowed_group     = "payments-engineers"
-l1_approver_group = "payments-leads"
+admin_emails = ["alice@company.com"]   # § 5.4 — admin set lives here, not DB
 
 [[aws_account]]
 account_id = "111111111111"
 role_arn   = "arn:aws:iam::111111111111:role/secrets-portal-writer"
 ```
 
-The scalar fields (host, port, database_url, kms_key_arn, cognito_*,
-csrf_*, l2_approver_group) are **required** — no `#[serde(default)]`
-on any of them. `prefix` and `aws_account` are both `Vec` — deserialized
-as empty if absent, but validation at boot requires:
+Scalar fields (host, port, database_url, kms_key_arn, cognito_*, csrf_*)
+and `admin_emails` are **required** — no `#[serde(default)]` on any of
+them. `aws_account` is a `Vec` — deserialized as empty if absent, but
+validation at boot requires:
 
-- ≥ 1 `[[prefix]]` rule (otherwise nothing is manageable).
-- ≥ 1 `[[aws_account]]` matching each distinct `aws_account_id`
-  referenced by `[[prefix]]`.
-- No two `[[prefix]]` with the same `prefix` string.
+- ≥ 1 `[[aws_account]]` covering every `aws_account_id` that appears in
+  the `prefix_policies` table at boot. (The rest of the policy lives in
+  the DB and is editable through the admin UI; only the AWS credentials
+  side stays in deployment-time config.)
 - No two `[[aws_account]]` with the same `account_id`.
 
 Boot fails with a clear error if any of these are violated.

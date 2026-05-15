@@ -21,7 +21,7 @@ use sqlx::postgres::PgPoolOptions;
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
-const ADMIN_GROUP: &str = "portal-admins";
+const ADMIN_EMAILS: &[&str] = &["admin@example.com"];
 
 type SecretStore = Arc<RwLock<HashMap<String, Map<String, Value>>>>;
 
@@ -180,17 +180,10 @@ async fn seed(pool: &PgPool) -> Result<HashMap<String, Uuid>> {
         Some("L2 approvers in default-flow"),
     )
     .await?;
-    let pa = ensure_group(
-        pool,
-        ADMIN_GROUP,
-        Some("May manage groups, flows, and prefix policies"),
-    )
-    .await?;
 
     groups::add_member(pool, alice, engineers).await?;
     groups::add_member(pool, bob, engineering_leads).await?;
     groups::add_member(pool, carol, platform_owners).await?;
-    groups::add_member(pool, admin, pa).await?;
 
     if prefix_policies::list_policies(pool).await?.is_empty() {
         let flow_id = match approval_flows::get_flow_by_name(pool, "default-flow").await? {
@@ -616,25 +609,25 @@ async fn eligibility(
     Ok(Some(group.group_name))
 }
 
-async fn require_admin(ctx: &AppCtx, viewer_id: Uuid) -> Result<(), AppError> {
-    let admin_group = groups::get_group_by_name(&ctx.pool, ADMIN_GROUP)
-        .await?
-        .ok_or_else(|| AppError::new(StatusCode::INTERNAL_SERVER_ERROR, "admin group missing"))?;
-    if !groups::is_member(&ctx.pool, viewer_id, admin_group.group_id).await? {
-        return Err(AppError::new(
+fn require_admin(viewer_email: &str) -> Result<(), AppError> {
+    if ADMIN_EMAILS
+        .iter()
+        .any(|e| e.eq_ignore_ascii_case(viewer_email))
+    {
+        Ok(())
+    } else {
+        Err(AppError::new(
             StatusCode::FORBIDDEN,
             "admin access required",
-        ));
+        ))
     }
-    Ok(())
 }
 
 async fn admin_index(
     State(ctx): State<AppCtx>,
     Query(q): Query<AsParam>,
 ) -> Result<Html<String>, AppError> {
-    let viewer_id = resolve_viewer(&ctx, &q.as_)?;
-    require_admin(&ctx, viewer_id).await?;
+    require_admin(&q.as_)?;
 
     let group_count = groups::list_groups(&ctx.pool).await?.len();
     let flow_count = approval_flows::list_flows(&ctx.pool).await?.len();
@@ -656,8 +649,7 @@ async fn admin_groups_list(
     State(ctx): State<AppCtx>,
     Query(q): Query<AsParam>,
 ) -> Result<Html<String>, AppError> {
-    let viewer_id = resolve_viewer(&ctx, &q.as_)?;
-    require_admin(&ctx, viewer_id).await?;
+    require_admin(&q.as_)?;
 
     let mut body = String::from(
         "<h1>Groups</h1><table><tr><th>Name</th><th>Description</th><th>Members</th><th></th></tr>",
@@ -693,8 +685,7 @@ async fn admin_groups_create(
     Query(q): Query<AsParam>,
     Form(form): Form<NewGroupForm>,
 ) -> Result<Redirect, AppError> {
-    let viewer_id = resolve_viewer(&ctx, &q.as_)?;
-    require_admin(&ctx, viewer_id).await?;
+    require_admin(&q.as_)?;
 
     let name = form.group_name.trim();
     if name.is_empty() {
@@ -713,8 +704,7 @@ async fn admin_group_detail(
     Path(id): Path<Uuid>,
     Query(q): Query<AsParam>,
 ) -> Result<Html<String>, AppError> {
-    let viewer_id = resolve_viewer(&ctx, &q.as_)?;
-    require_admin(&ctx, viewer_id).await?;
+    require_admin(&q.as_)?;
 
     let group = groups::get_group(&ctx.pool, id)
         .await?
@@ -758,16 +748,14 @@ async fn admin_group_detail(
         as_ = esc(&q.as_),
     ));
 
-    if group.group_name != ADMIN_GROUP {
-        body.push_str(&format!(
-            r#"<h3>Danger</h3>
-            <form method="post" action="/admin/groups/{id}/delete?as={as_}">
-              <button type="submit">Delete group</button>
-              <span> (fails if any prefix policy still references it)</span>
-            </form>"#,
-            as_ = esc(&q.as_),
-        ));
-    }
+    body.push_str(&format!(
+        r#"<h3>Danger</h3>
+        <form method="post" action="/admin/groups/{id}/delete?as={as_}">
+          <button type="submit">Delete group</button>
+          <span> (fails if any prefix policy still references it)</span>
+        </form>"#,
+        as_ = esc(&q.as_),
+    ));
 
     Ok(Html(page(
         "Group",
@@ -782,18 +770,8 @@ async fn admin_group_delete(
     Path(id): Path<Uuid>,
     Query(q): Query<AsParam>,
 ) -> Result<Redirect, AppError> {
-    let viewer_id = resolve_viewer(&ctx, &q.as_)?;
-    require_admin(&ctx, viewer_id).await?;
+    require_admin(&q.as_)?;
 
-    let group = groups::get_group(&ctx.pool, id)
-        .await?
-        .ok_or_else(|| AppError::new(StatusCode::NOT_FOUND, "group not found"))?;
-    if group.group_name == ADMIN_GROUP {
-        return Err(AppError::new(
-            StatusCode::BAD_REQUEST,
-            "cannot delete portal-admins",
-        ));
-    }
     groups::delete_group(&ctx.pool, id).await?;
     Ok(Redirect::to(&format!("/admin/groups?as={}", q.as_)))
 }
@@ -804,8 +782,7 @@ async fn admin_group_add_member(
     Query(q): Query<AsParam>,
     Form(form): Form<AddMemberForm>,
 ) -> Result<Redirect, AppError> {
-    let viewer_id = resolve_viewer(&ctx, &q.as_)?;
-    require_admin(&ctx, viewer_id).await?;
+    require_admin(&q.as_)?;
 
     let email = form.user_email.trim().to_lowercase();
     if email.is_empty() {
@@ -822,20 +799,8 @@ async fn admin_group_remove_member(
     Query(q): Query<AsParam>,
     Form(form): Form<UserIdForm>,
 ) -> Result<Redirect, AppError> {
-    let viewer_id = resolve_viewer(&ctx, &q.as_)?;
-    require_admin(&ctx, viewer_id).await?;
+    require_admin(&q.as_)?;
 
-    if let Some(g) = groups::get_group(&ctx.pool, id).await?
-        && g.group_name == ADMIN_GROUP
-    {
-        let admins = groups::list_members(&ctx.pool, id).await?;
-        if admins.len() <= 1 {
-            return Err(AppError::new(
-                StatusCode::BAD_REQUEST,
-                "cannot remove the last portal-admin",
-            ));
-        }
-    }
     groups::remove_member(&ctx.pool, form.user_id, id).await?;
     Ok(Redirect::to(&format!("/admin/groups/{id}?as={}", q.as_)))
 }
@@ -844,8 +809,7 @@ async fn admin_prefixes_list(
     State(ctx): State<AppCtx>,
     Query(q): Query<AsParam>,
 ) -> Result<Html<String>, AppError> {
-    let viewer_id = resolve_viewer(&ctx, &q.as_)?;
-    require_admin(&ctx, viewer_id).await?;
+    require_admin(&q.as_)?;
 
     let policies = prefix_policies::list_policies(&ctx.pool).await?;
     let groups_list = groups::list_groups(&ctx.pool).await?;
@@ -901,8 +865,7 @@ async fn admin_prefixes_create(
     Query(q): Query<AsParam>,
     Form(form): Form<PrefixForm>,
 ) -> Result<Redirect, AppError> {
-    let viewer_id = resolve_viewer(&ctx, &q.as_)?;
-    require_admin(&ctx, viewer_id).await?;
+    require_admin(&q.as_)?;
 
     let tags = parse_tags(&form.tags)?;
     prefix_policies::create_policy(
@@ -923,8 +886,7 @@ async fn admin_prefix_detail(
     Path(id): Path<Uuid>,
     Query(q): Query<AsParam>,
 ) -> Result<Html<String>, AppError> {
-    let viewer_id = resolve_viewer(&ctx, &q.as_)?;
-    require_admin(&ctx, viewer_id).await?;
+    require_admin(&q.as_)?;
 
     let policy = prefix_policies::get_policy(&ctx.pool, id)
         .await?
@@ -963,8 +925,7 @@ async fn admin_prefix_update(
     Query(q): Query<AsParam>,
     Form(form): Form<PrefixForm>,
 ) -> Result<Redirect, AppError> {
-    let viewer_id = resolve_viewer(&ctx, &q.as_)?;
-    require_admin(&ctx, viewer_id).await?;
+    require_admin(&q.as_)?;
 
     let tags = parse_tags(&form.tags)?;
     prefix_policies::update_policy(
@@ -986,8 +947,7 @@ async fn admin_prefix_delete(
     Path(id): Path<Uuid>,
     Query(q): Query<AsParam>,
 ) -> Result<Redirect, AppError> {
-    let viewer_id = resolve_viewer(&ctx, &q.as_)?;
-    require_admin(&ctx, viewer_id).await?;
+    require_admin(&q.as_)?;
     prefix_policies::delete_policy(&ctx.pool, id).await?;
     Ok(Redirect::to(&format!("/admin/prefixes?as={}", q.as_)))
 }
@@ -1193,8 +1153,7 @@ async fn admin_flows_list(
     State(ctx): State<AppCtx>,
     Query(q): Query<AsParam>,
 ) -> Result<Html<String>, AppError> {
-    let viewer_id = resolve_viewer(&ctx, &q.as_)?;
-    require_admin(&ctx, viewer_id).await?;
+    require_admin(&q.as_)?;
 
     let flows = approval_flows::list_flows(&ctx.pool).await?;
     let groups_list = groups::list_groups(&ctx.pool).await?;
@@ -1236,8 +1195,7 @@ async fn admin_flows_create(
     Query(q): Query<AsParam>,
     Form(form): Form<FlowForm>,
 ) -> Result<Redirect, AppError> {
-    let viewer_id = resolve_viewer(&ctx, &q.as_)?;
-    require_admin(&ctx, viewer_id).await?;
+    require_admin(&q.as_)?;
 
     let name = form.flow_name.trim();
     if name.is_empty() {
@@ -1266,8 +1224,7 @@ async fn admin_flow_detail(
     Path(id): Path<Uuid>,
     Query(q): Query<AsParam>,
 ) -> Result<Html<String>, AppError> {
-    let viewer_id = resolve_viewer(&ctx, &q.as_)?;
-    require_admin(&ctx, viewer_id).await?;
+    require_admin(&q.as_)?;
 
     let flow = approval_flows::get_flow(&ctx.pool, id)
         .await?
@@ -1303,8 +1260,7 @@ async fn admin_flow_update(
     Query(q): Query<AsParam>,
     Form(form): Form<FlowForm>,
 ) -> Result<Redirect, AppError> {
-    let viewer_id = resolve_viewer(&ctx, &q.as_)?;
-    require_admin(&ctx, viewer_id).await?;
+    require_admin(&q.as_)?;
 
     let name = form.flow_name.trim();
     if name.is_empty() {
@@ -1334,8 +1290,7 @@ async fn admin_flow_delete(
     Path(id): Path<Uuid>,
     Query(q): Query<AsParam>,
 ) -> Result<Redirect, AppError> {
-    let viewer_id = resolve_viewer(&ctx, &q.as_)?;
-    require_admin(&ctx, viewer_id).await?;
+    require_admin(&q.as_)?;
     approval_flows::delete_flow(&ctx.pool, id).await?;
     Ok(Redirect::to(&format!("/admin/flows?as={}", q.as_)))
 }

@@ -4,7 +4,3 @@ create table if not exists groups (
     description text,
     created_at  timestamptz not null default now()
 );
-
-insert into groups (group_name, description)
-values ('portal-admins', 'May manage groups and prefix policies')
-on conflict (group_name) do nothing;
